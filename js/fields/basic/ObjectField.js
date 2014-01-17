@@ -591,7 +591,12 @@
                         valid = valid && self.determineSingleDependencyValid(propertyId, value);
                     });
                 }
-
+                else if (typeof itemDependencies === 'object' )
+                {
+                    $.each(itemDependencies, function(index, value) {
+                        valid = valid && self.determineSingleDependencyValid(propertyId, index);
+                    });
+                }
                 return valid;
             },
 
@@ -669,6 +674,13 @@
                         bindEvent(propertyId, value);
                     });
                 }
+                else if (typeof itemDependencies === 'object')
+                {
+                    $.each(itemDependencies, function(index, value) {
+                        bindEvent(propertyId, index);
+                    });
+                }
+                
             },
 
             /**
