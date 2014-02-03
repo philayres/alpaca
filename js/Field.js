@@ -961,6 +961,38 @@
         },
 
         /**
+         * Checks whether this field is hidden based on the value of its dependencies.
+         * Checks whether ancestors are already hidden, then checks itself.
+         *         
+         * TODO - see if there is a better way of identifying candidates for this check, since
+         * currently we are just trying to prevent breaking logic in the dependencies check, rather than
+         * responding to the fields we are presented in a meaningful way
+         * 
+         * @returns {Boolean} True if this field is hidden, false otherwise.
+         */
+        hidden_by_dependencies: function(){
+  
+          var hidden = false;
+          
+          // Do nothing if the field or its parent are initializing (or the field does not have a parent)
+          if(this.initializing || !this.parent || this.parent.initializing) 
+              return false;
+          
+          // Check the parent, only if it is not the top level form and it has a meaningful propertyId
+          if(this.parent.path !== '/' && this.parent.propertyId)
+            hidden = this.parent.hidden_by_dependencies();
+          
+          // If previous checks OK, and parent has meaningful set of children , 
+          // and it responds to a dependencies validation check
+
+          if(!hidden && this.parent.children && this.parent.children.length > 0 && this.parent.determineAllDependenciesValid )
+            hidden = !this.parent.determineAllDependenciesValid(this.propertyId);
+          
+          return hidden;
+  
+        },
+
+        /**
          * Validates this field and returns whether it is in a valid state.
          *
          * @param [Boolean] validateChildren whether to child controls.
@@ -969,19 +1001,26 @@
          */
         validate: function(validateChildren) {
 
-            // if validateChildren, then walk recursively down into child elements
-            if (this.children && validateChildren) {
+            var not_hidden_by_dependencies = !this.hidden_by_dependencies();
+            
+            // if validateChildren, then walk recursively down into child elements, 
+            // only if the current field is not hidden due to dependencies
+            if (this.children && validateChildren && not_hidden_by_dependencies) {               
                 for (var i = 0; i < this.children.length; i++) {
-                    var child = this.children[i];
-                    child.validate(validateChildren);
-                }
+                    var child = this.children[i];                    
+                    // Don't validate if there are dependencies that lead to this child field being hidden
+                    if(!child.hidden_by_dependencies())
+                        child.validate(validateChildren);
+                }                
             }
 
             // skip out if we haven't yet bound any data into this control
             // the control can still be considered to be initializing
             var status = true;
-            if (!this.initializing && this.options.validate) {
-                status = this.handleValidate();
+            if (!this.initializing && this.options.validate) {                
+                // Don't validate if there are dependencies and they lead to this child field being hidden
+                if(not_hidden_by_dependencies)
+                    status = this.handleValidate();
             }
 
             return status;
@@ -1220,17 +1259,19 @@
         },
 
         /**
-         * Finds if this field is valid.
+         * Finds if this field is valid, only if its optional dependencies are correct
          *
          * @return {Boolean} True if the field is valid, false otherwise.
          */
         isValid: function(checkChildren) {
-
-            if (checkChildren && this.children)
+          
+            var not_hidden_by_dependencies = !this.hidden_by_dependencies();            
+          
+            if (checkChildren && this.children && not_hidden_by_dependencies)
             {
                 for (var i = 0; i < this.children.length; i++) {
-                    var child = this.children[i];
-                    if (!child.isValid(checkChildren)) {
+                    var child = this.children[i];                    
+                    if (!child.hidden_by_dependencies() && !child.isValid(checkChildren)) {
                         return false;
                     }
                 }
@@ -1240,13 +1281,14 @@
                 return true;
             } else {
                 for (var key in this.validation) {
-                    if (!this.validation[key].status) {
+                    if (not_hidden_by_dependencies && !this.validation[key].status) {
                         return false;
                     }
                 }
                 return true;
             }
         },
+
 
         /**
          * Initializes event handling.
