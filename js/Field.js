@@ -1002,7 +1002,7 @@
         validate: function(validateChildren) {
 
             var not_hidden_by_dependencies = !this.hidden_by_dependencies();
-            
+            var child_result = true;
             // if validateChildren, then walk recursively down into child elements, 
             // only if the current field is not hidden due to dependencies
             if (this.children && validateChildren && not_hidden_by_dependencies) {               
@@ -1010,7 +1010,7 @@
                     var child = this.children[i];                    
                     // Don't validate if there are dependencies that lead to this child field being hidden
                     if(!child.hidden_by_dependencies())
-                        child.validate(validateChildren);
+                        child_result = child_result && child.validate(validateChildren);
                 }                
             }
 
@@ -1020,7 +1020,7 @@
             if (!this.initializing && this.options.validate) {                
                 // Don't validate if there are dependencies and they lead to this child field being hidden
                 if(not_hidden_by_dependencies)
-                    status = this.handleValidate();
+                    status = child_result && this.handleValidate();
             }
 
             return status;
