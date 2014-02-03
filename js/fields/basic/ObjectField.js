@@ -887,8 +887,8 @@
                                 // if auto-wizard, process bindings one at a time
                                 if (stepBindings) {
                                     $.each(stepBindings, function(propertyId, step) {
-                                        valid = valid & _this.childrenByPropertyId[propertyId].validate();
-                                        _this.childrenByPropertyId[propertyId].renderValidationState();
+                                        valid = valid && _this.childrenByPropertyId[propertyId].validate(true);
+                                        _this.childrenByPropertyId[propertyId].renderValidationState(true);
                                     });
                                 }
 
@@ -988,8 +988,8 @@
                                 if (stepBindings) {
                                     $.each(stepBindings, function(propertyId, step) {
                                         if (step == stepCount + 1 && valid) {
-                                            valid = _this.childrenByPropertyId[propertyId].validate();
-                                            _this.childrenByPropertyId[propertyId].validate();
+                                            valid = valid && _this.childrenByPropertyId[propertyId].validate(true);
+                                            _this.childrenByPropertyId[propertyId].renderValidationState(true);
                                         }
                                     });
                                 }
