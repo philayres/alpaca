@@ -1266,7 +1266,7 @@
                                   
                                 
                                 $("#step" + next_i).show();
-                                _this._selectStep(stepCount + 1);
+                                _this._selectStep(next_i);
 
                                 // TODO: fire click handler?
                                 if (_this.wizardConfigs.buttons.next && _this.wizardConfigs.buttons.next.onClick) {
