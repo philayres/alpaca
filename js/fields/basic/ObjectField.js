@@ -691,15 +691,16 @@
              *
              * @param {Object} propertyId Field property id.
              * @param {Object} dependentOnPropertyId Property id of the dependency field.
+             * @param {Object} opt_dependencies optional set of dependencies (if provided, propertyId can be null)
              *
              * @returns {Boolean} True if all dependencies have been satisfied and the field needs to be shown,
              * false otherwise.
              */
-            determineSingleDependencyValid: function(propertyId, dependentOnPropertyId)
+            determineSingleDependencyValid: function(propertyId, dependentOnPropertyId, opt_dependencies)
             {
                 // checks to see if the referenced "dependent-on" property has a value
                 // basic JSON-schema supports this (if it has ANY value, it is considered valid
-                // special consideration for boolean false
+                // special consideration for boolean false                              
                 var child = this.childrenByPropertyId[dependentOnPropertyId];
                 if (!child)
                 {
@@ -711,7 +712,14 @@
                 var valid = false;
 
                 // go one of two directions depending on whether we have conditional dependencies or not
-                var conditionalDependencies = this.childrenByPropertyId[propertyId].options.dependencies;
+                              
+                var conditionalDependencies;
+                
+                if(opt_dependencies)
+                  conditionalDependencies = opt_dependencies;
+                else
+                  conditionalDependencies = this.childrenByPropertyId[propertyId].options.dependencies;
+                
                 if (!conditionalDependencies || conditionalDependencies.length === 0)
                 {
                     //
@@ -720,7 +728,7 @@
 
                     // special case: if the field is a boolean field and we have no conditional dependency checking,
                     // then we set valid = false if the field data is a boolean false
-                    if (child.getType() === "boolean" && !this.childrenByPropertyId[propertyId].options.dependencies && !child.data)
+                    if (child.getType() === "boolean" && !conditionalDependencies && !child.data)
                     {
                         valid = false;
                     }
@@ -790,7 +798,7 @@
                 }
 
                 return valid;
-            },
+              },
 
 
 
@@ -994,6 +1002,8 @@
                                     });
                                 }
                             }
+                            
+                            _this.hideWizardTabsForDependencies();
 
                             return valid;
 
@@ -1014,6 +1024,8 @@
                         _this._createNextButton(i, false, vFunc);
                     }
                 }
+                
+                _this.hideWizardTabsForDependencies();
             },
 
             /**
@@ -1038,6 +1050,102 @@
                         return wizardStatusBarElement;
                     }
                 }
+            },
+
+
+
+            /**
+             * Hide auto wizard tabs and panels based on dependencies defined in the stepTitles array
+             * 
+             * stepTitles: [
+             *  {
+             *     "title": "Primary Details"            
+             *  }, 
+             *  { 
+             *     "title": "Organization Details",             
+             *     "dependencies": {
+             *       "investor_account_type": ['Corporation', 'Partnership', 'Non-Profit', 'Non-Incorporated Organization']
+             *     }
+             *   }
+             * ] 
+             * 
+             * Automatically called on rendering of the wizard, and subsequently when 'Next' or 'Prev'
+             * buttons are clicked.
+             * 
+             * Requires an additional CSS entry to make the 'hide' operate
+             * li[data-hide-tab='true'], div[data-hide-tab='true'] {display:none !important;}
+             * 
+             * This function can also be called against the rendered_form, to allow reprocessing of 
+             * dependencies to happen programmatically (for example, user events), for example:             
+             *   
+             * formEl.alpaca({
+             *   postRender: function(rendered_form) {
+             *     // other stuff
+             *     $('someelement').click(function(){
+             *       rendered_form.hideWizardTabsForDependencies();
+             *     }); 
+             *   }
+             *   ...
+             */
+            hideWizardTabsForDependencies: function(){
+
+              // Ensure we are in a wizard view before continuing
+              var tc = this.form.topControl;    
+              if(!tc.view.wizard){
+                return false;
+              }
+
+              // Iterate through the wizard steps, identifying those that have dependencies
+              // that are not satisfied
+              var steps = tc.view.wizard.steps;
+              for(var step_num=0; step_num < steps; step_num++){
+
+                var wizopt = tc.view.wizard.stepTitles[step_num];
+                var itemDependencies = wizopt.dependencies; 
+                // Set the wizard panel and tab to be visible initially
+                // We'll set the data-hide-tab attribute later if the tab is to be hidden      
+                $('#stepDesc'+step_num).attr('data-hide-tab',null)
+                $('#step'+step_num).attr('data-hide-tab', null);
+
+                // Ignore processing if no dependencies on this step
+                if(wizopt && itemDependencies){
+
+                  var valid = true;
+
+                  // Check each defined dependency is valid, by providing the wizard-defined dependencies
+                  // and stepping though each 
+                  // We are running this against the top control, which contains all fields
+                  if (Alpaca.isString(itemDependencies))
+                  {
+                      valid = tc.determineSingleDependencyValid(null, itemDependencies, itemDependencies);
+                  }
+                  else if (Alpaca.isArray(itemDependencies))
+                  {
+                      $.each(itemDependencies, function(index, value) {
+                          valid = valid &&  tc.determineSingleDependencyValid(null, value, itemDependencies);
+                      });
+                  }
+                  else if (typeof itemDependencies === 'object' )
+                  {
+                      $.each(itemDependencies, function(index, value) {
+                          valid = valid && tc.determineSingleDependencyValid(null, index, itemDependencies);
+                      });                
+                  }          
+
+
+                  if(!valid){
+                    // A CSS filter on the attribute will be used to hide the tab
+                    // rather than explicity $().hide(), since this allows better control
+                    // if tabs are hidden and shown programmatically outside of Alpaca
+                    $('#stepDesc'+step_num).attr('data-hide-tab','true');
+                    $('#step'+step_num).attr('data-hide-tab','true');
+                  }        
+                }
+              }
+
+
+
+
             },
 
             /**
@@ -1081,15 +1189,19 @@
 
                             if (valid) {
                                 $("#" + stepName).hide();
-                                $("#step" + (i - 1)).show();
-                                _this._selectStep(i - 1);
-
+                                var next_i = i - 1;
+                                while($("#step" + next_i).attr('data-hide-tab') && next_i > -1 ){ // limit just in case
+                                  next_i--;
+                                }
+                                $("#step" + next_i).show();
+                                _this._selectStep(next_i);
+                                
                                 // TODO: fire click handler?
                                 if (_this.wizardConfigs.buttons.prev && _this.wizardConfigs.buttons.prev.onClick) {
                                     _this.wizardConfigs.buttons.prev.onClick();
                                 }
                             }
-
+                            _this.hideWizardTabsForDependencies();
                             return false;
                         };
                     }(stepName, i, validationFunction));
@@ -1143,7 +1255,14 @@
 
                             if (valid) {
                                 $("#" + stepName).hide();
-                                $("#step" + (stepCount + 1)).show();
+                                
+                                var next_i = stepCount + 1;
+                                while($("#step" + next_i).attr('data-hide-tab') && next_i < 1000 ){ // limit just in case
+                                  next_i++;
+                                }
+                                  
+                                
+                                $("#step" + next_i).show();
                                 _this._selectStep(stepCount + 1);
 
                                 // TODO: fire click handler?
@@ -1151,7 +1270,7 @@
                                     _this.wizardConfigs.buttons.next.onClick();
                                 }
                             }
-
+                            _this.hideWizardTabsForDependencies();
                             return false;
                         };
                     }(stepName, i, validationFunction));
