@@ -114,6 +114,22 @@
             }
         },
 
+        getValue: function() {
+            var value = null;            
+            if (this.field) {
+                value = this.field.val();
+            } else {
+                value = this.base();
+            }
+            
+            if(this.options.storeIsoDate){              
+              var d = $.datepicker.parseDate(this.options.dateFormat, value);
+              value =  $.datepicker.formatDate('yy-mm-dd', d);            
+            }            
+            
+            return value;
+        },
+
         /**
          * @see Alpaca.Fields.TextField#setValue
          */
@@ -122,6 +138,11 @@
             if (val === "") {
                 this.base(val);
                 return;
+            }
+
+            if(this.options.storeIsoDate){
+              var d = $.datepicker.parseDate('yy-mm-dd', val);
+              val =  $.datepicker.formatDate(this.options.dateFormat, d);
             }
 
             this.base(val);
