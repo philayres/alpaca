@@ -1187,6 +1187,8 @@
                                 valid = validationFunction(stepName, stepCount);
                             }
 
+                          _this.hideWizardTabsForDependencies();
+                          
                             if (valid) {
                                 $("#" + stepName).hide();
                                 var next_i = i - 1;
@@ -1201,7 +1203,6 @@
                                     _this.wizardConfigs.buttons.prev.onClick();
                                 }
                             }
-                            _this.hideWizardTabsForDependencies();
                             return false;
                         };
                     }(stepName, i, validationFunction));
@@ -1252,7 +1253,9 @@
                             {
                                 valid = validationFunction(stepName, stepCount);
                             }
-
+                            
+                            _this.hideWizardTabsForDependencies();
+                            
                             if (valid) {
                                 $("#" + stepName).hide();
                                 
@@ -1269,8 +1272,7 @@
                                 if (_this.wizardConfigs.buttons.next && _this.wizardConfigs.buttons.next.onClick) {
                                     _this.wizardConfigs.buttons.next.onClick();
                                 }
-                            }
-                            _this.hideWizardTabsForDependencies();
+                            }                            
                             return false;
                         };
                     }(stepName, i, validationFunction));
