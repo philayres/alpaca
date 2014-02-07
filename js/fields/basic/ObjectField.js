@@ -792,9 +792,13 @@
 
                 // final check: only set valid if the dependentOnPropertyId is showing
                 var dependencyProperty = this.childrenByPropertyId[dependentOnPropertyId];
+                // .isHidden() appears to work inconsistently, depending whether this is a view or an edit template
+                // it uses css block: none on the container element, which is assessed differently between the types of view
+                // also, it potentially incorrectly assesses a dynamic css decision to hide objects as a desire to dictate dependencies
+                // ... until I can generate a proof case and possible fix I'm going to disable this nesting functionality completely.
                 if (dependencyProperty && dependencyProperty.isHidden())
                 {
-                    valid = false;
+                 //   valid = false;
                 }
 
                 return valid;
@@ -1090,7 +1094,16 @@
             hideWizardTabsForDependencies: function(){
 
               // Ensure we are in a wizard view before continuing
-              var tc = this.form.topControl;    
+              var tc; 
+              
+              if(this.form)
+                tc = this.form.topControl;    
+              else if (this.view)
+                tc = this;
+              if(!tc.view.wizard){
+                return false;
+              }
+              
               if(!tc.view.wizard){
                 return false;
               }
